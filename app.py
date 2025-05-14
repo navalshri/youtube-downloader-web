@@ -1,38 +1,35 @@
-from flask import Flask, render_template, request, send_from_directory, redirect, url_for
-import os
+from flask import Flask, render_template, request
 import yt_dlp
+import os
 
 app = Flask(__name__)
-DOWNLOADS_DIR = "downloads"
+DOWNLOAD_DIR = "downloads"
 
-if not os.path.exists(DOWNLOADS_DIR):
-    os.makedirs(DOWNLOADS_DIR)
+if not os.path.exists(DOWNLOAD_DIR):
+    os.makedirs(DOWNLOAD_DIR)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
         url = request.form['url']
-        try:
-            ydl_opts = {
-                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best',
-                'quiet': True,
-                'noplaylist': True,
-                'merge_output_format': 'mp4',
-                'outtmpl': os.path.join(DOWNLOADS_DIR, '%(title)s.%(ext)s'),
-                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                filename = ydl.prepare_filename(info).replace(".webm", ".mp4")
-                filename = os.path.basename(filename)
-            return redirect(url_for('download_file', filename=filename))
-        except Exception as e:
-            return f"<h3>Error: {str(e)}</h3>"
-    return render_template('index.html')
+        ydl_opts = {
+            'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
+            'quiet': True,
+            'merge_output_format': 'mp4',
+            'noplaylist': True,
+            'format': 'bestvideo+bestaudio/best',
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        }
 
-@app.route('/downloads/<filename>')
-def download_file(filename):
-    return send_from_directory(DOWNLOADS_DIR, filename, as_attachment=True)
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+            return '✅ Download successful!'
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return f"❌ Error: {e}"
+
+    return render_template('index.html')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))  # Render sets PORT env variable
